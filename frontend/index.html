@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Sistema de Folha de Pagamento</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- MENU LATERAL -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <h2>💰 Finance</h2>
+                <p>Folha de Pagamento</p>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-tab="dashboard">📊 Dashboard</button>
+                <button class="nav-item" data-tab="empresas">🏢 Empresas</button>
+                <button class="nav-item" data-tab="funcionarios">👥 Funcionários</button>
+                <button class="nav-item" data-tab="planos">📊 Planos de Contas</button>
+                <button class="nav-item" data-tab="lancamentos">💸 Lançamentos</button>
+                <button class="nav-item" data-tab="folha">📅 Folha de Pagamento</button>
+                <button class="nav-item" data-tab="relatorios">📈 Relatórios</button>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="btnBackup" class="btn-secondary">💾 Backup</button>
+                <button id="btnRestore" class="btn-secondary">📂 Restaurar</button>
+                <input type="file" id="restoreFile" accept=".json" style="display:none;">
+            </div>
+        </aside>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <main class="main-content">
+            <header class="main-header">
+                <h1>Sistema de Folha de Pagamento</h1>
+                <p>Controle de salários, benefícios (+) e descontos (–)</p>
+            </header>
+
+            <!-- DASHBOARD (cards + gráficos) -->
+            <div id="dashboard" class="tab-content active">
+                <div class="dashboard-cards">
+                    <div class="card card-blue">
+                        <h3>Total Benefícios (mês)</h3>
+                        <p id="totalBeneficios">R$ 0,00</p>
+                    </div>
+                    <div class="card card-pink">
+                        <h3>Total Descontos (mês)</h3>
+                        <p id="totalDescontos">R$ 0,00</p>
+                    </div>
+                    <div class="card card-cyan">
+                        <h3>Saldo Líquido</h3>
+                        <p id="totalLiquido">R$ 0,00</p>
+                    </div>
+                </div>
+                <div class="charts-container">
+                    <div class="chart-box">
+                        <canvas id="chartBeneficiosDescontos"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <canvas id="chartEvolucaoMensal"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EMPRESAS -->
+            <div id="empresas" class="tab-content">
+                <div class="section-header">
+                    <h2>Empresas</h2>
+                    <div>
+                        <button class="btn-primary" id="btnNovaEmpresa">+ Nova Empresa</button>
+                        <button class="btn-secondary" id="btnLimparBancoSelectivo">🗑️ Limpar Dados</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="tabelaEmpresas">
+                        <thead><tr><th class="col-id">ID</th><th>Nome</th><th>CNPJ</th><th class="col-actions">Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- FUNCIONÁRIOS -->
+            <div id="funcionarios" class="tab-content">
+                <div class="section-header">
+                    <h2>Funcionários</h2>
+                    <button class="btn-primary" id="btnNovoFuncionario">+ Novo Funcionário</button>
+                </div>
+                <div class="table-wrapper">
+                    <table id="tabelaFuncionarios">
+                        <thead><tr><th class="col-id">ID</th><th>Nome</th><th>Cargo</th><th>Salário Base</th><th>Empresa</th><th class="col-actions">Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PLANOS DE CONTAS -->
+            <div id="planos" class="tab-content">
+                <div class="section-header">
+                    <h2>Planos de Contas</h2>
+                    <button class="btn-primary" id="btnNovaConta">+ Nova Conta</button>
+                </div>
+                <div class="table-wrapper">
+                    <table id="tabelaPlanos">
+                        <thead><tr><th class="col-id">ID</th><th>Nome</th><th>Tipo</th><th class="col-actions">Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <p class="info">Use "Benefício" para valores que somam, "Desconto" para valores que subtraem.</p>
+            </div>
+
+            <!-- LANÇAMENTOS -->
+            <div id="lancamentos" class="tab-content">
+                <div class="section-header">
+                    <h2>Lançamentos</h2>
+                    <button class="btn-primary" id="btnNovoLancamento">+ Novo Lançamento</button>
+                </div>
+                <div class="filters">
+                    <select id="filtroEmpresa"><option value="">Todas empresas</option></select>
+                    <select id="filtroFuncionario"><option value="">Todos funcionários</option></select>
+                    <select id="filtroTipoMovimento"><option value="">Todos tipos</option><option value="Benefício">Benefício (+)</option><option value="Desconto">Desconto (-)</option></select>
+                    <input type="date" id="filtroDataInicio" placeholder="Data início">
+                    <input type="date" id="filtroDataFim" placeholder="Data fim">
+                    <input type="number" step="0.01" id="filtroValorMin" placeholder="Valor mínimo">
+                    <input type="number" step="0.01" id="filtroValorMax" placeholder="Valor máximo">
+                    <button id="btnFiltrar" class="btn-secondary">Filtrar</button>
+                    <button id="btnLimparFiltros" class="btn-secondary">Limpar Filtros</button>
+                    <button id="btnImprimirLancamentos" class="btn-secondary">🖨️ Imprimir/PDF</button>
+                </div>
+                <div class="table-wrapper" id="tabelaLancamentosContainer">
+                    <table id="tabelaLancamentos">
+                        <thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Empresa</th><th>Funcionário</th><th>Plano</th><th>Valor</th><th class="col-actions">Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- FOLHA DE PAGAMENTO -->
+            <div id="folha" class="tab-content">
+                <div class="section-header">
+                    <h2>Folha de Pagamento</h2>
+                    <div class="filters">
+                        <select id="folhaEmpresa"><option value="">Todas empresas</option></select>
+                        <select id="folhaFuncionario"><option value="">Todos funcionários</option></select>
+                        <input type="month" id="folhaMesAno">
+                        <button id="btnCalcularFolha" class="btn-primary">Calcular</button>
+                        <button id="btnImprimirFolha" class="btn-secondary">🖨️ Imprimir/PDF</button>
+                    </div>
+                </div>
+                <div class="table-wrapper" id="tabelaFolhaContainer">
+                    <table id="tabelaFolha">
+                        <thead><tr><th>Funcionário</th><th>Empresa</th><th>Salário Base</th><th>Benefícios (+)</th><th>Descontos (-)</th><th>Total a Pagar</th><th>Status</th><th class="col-actions">Ações</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- RELATÓRIOS -->
+            <div id="relatorios" class="tab-content">
+                <div class="section-header"><h2>Relatórios Financeiros</h2></div>
+                <div class="filters">
+                    <select id="relTipo">
+                        <option value="geral">Geral</option>
+                        <option value="empresa">Por empresa</option>
+                        <option value="funcionario">Por funcionário</option>
+                        <option value="mensal">Resumo mensal</option>
+                    </select>
+                    <select id="relEmpresa" style="display:none;"><option value="">Selecione a empresa</option></select>
+                    <select id="relFuncionario" style="display:none;"><option value="">Selecione o funcionário</option></select>
+                    <input type="month" id="relMes" style="display:none;">
+                    <button id="btnGerarRelatorio" class="btn-primary">Gerar Relatório</button>
+                    <button id="btnImprimirRelatorio" class="btn-secondary">🖨️ Imprimir/PDF</button>
+                </div>
+                <div id="relatorioContainer" class="report-container"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAIS (idênticos) -->
+    <div id="modalEmpresa" class="modal"><div class="modal-content"><span class="close">&times;</span><h3 id="modalEmpresaTitle">Nova Empresa</h3><form id="formEmpresa"><input type="hidden" id="empresaId"><div class="form-group"><label>Nome*</label><input type="text" id="empresaNome" required></div><div class="form-group"><label>CNPJ</label><input type="text" id="empresaCnpj"></div><button type="submit" class="btn-primary">Salvar</button><button type="button" class="btn-secondary cancel-modal">Cancelar</button></form></div></div>
+    <div id="modalFuncionario" class="modal"><div class="modal-content"><span class="close">&times;</span><h3 id="modalFuncionarioTitle">Novo Funcionário</h3><form id="formFuncionario"><input type="hidden" id="funcionarioId"><div class="form-group"><label>Nome*</label><input type="text" id="funcionarioNome" required></div><div class="form-group"><label>Cargo</label><input type="text" id="funcionarioCargo"></div><div class="form-group"><label>Salário Base (R$)*</label><input type="number" step="0.01" id="funcionarioSalario" required></div><div class="form-group"><label>Empresa*</label><select id="funcionarioEmpresaId" required></select></div><button type="submit" class="btn-primary">Salvar</button><button type="button" class="btn-secondary cancel-modal">Cancelar</button></form></div></div>
+    <div id="modalPlanoConta" class="modal"><div class="modal-content"><span class="close">&times;</span><h3 id="modalPlanoTitle">Nova Conta</h3><form id="formPlanoConta"><input type="hidden" id="planoId"><div class="form-group"><label>Nome*</label><input type="text" id="planoNome" required></div><div class="form-group"><label>Tipo*</label><select id="planoTipo" required><option value="Benefício">Benefício (+)</option><option value="Desconto">Desconto (-)</option></select></div><button type="submit" class="btn-primary">Salvar</button><button type="button" class="btn-secondary cancel-modal">Cancelar</button></form></div></div>
+    <div id="modalLancamento" class="modal"><div class="modal-content"><span class="close">&times;</span><h3 id="modalLancamentoTitle">Novo Lançamento</h3><form id="formLancamento"><input type="hidden" id="lancamentoId"><div class="form-group"><label>Descrição*</label><input type="text" id="lancamentoDescricao" required></div><div class="form-group"><label>Valor (R$)*</label><input type="number" step="0.01" id="lancamentoValor" required></div><div class="form-group"><label>Data*</label><input type="date" id="lancamentoData" required></div><div class="form-group"><label>Funcionário*</label><select id="lancamentoFuncionarioId" required><option value="">Selecione</option></select></div><div class="form-group"><label>Plano de Conta*</label><select id="lancamentoPlanoContaId" required></select></div><div class="form-group"><label><input type="checkbox" id="lancamentoRecorrente"> Lançamento recorrente (todo mês)</label></div><button type="submit" class="btn-primary">Salvar</button><button type="button" class="btn-secondary cancel-modal">Cancelar</button></form></div></div>
+    <div id="modalPagamento" class="modal"><div class="modal-content"><span class="close">&times;</span><h3>Registrar Pagamento</h3><form id="formPagamento"><input type="hidden" id="pagamentoFuncionarioId"><input type="hidden" id="pagamentoMesAno"><div class="form-group"><label>Data do Pagamento*</label><input type="date" id="pagamentoData" required></div><div class="form-group"><label>Valor Pago (R$)*</label><input type="number" step="0.01" id="pagamentoValor" readonly></div><div class="form-group"><label>Plano de Conta (para o salário)</label><select id="pagamentoPlanoContaId" required></select></div><button type="submit" class="btn-primary">Confirmar Pagamento</button><button type="button" class="btn-secondary cancel-modal">Cancelar</button></form><p class="info">O pagamento gera um lançamento de "Salário pago" no relatório.</p></div></div>
+    <div id="modalLimpeza" class="modal"><div class="modal-content"><span class="close">&times;</span><h3>Limpar Dados Seletivamente</h3><form id="formLimpeza"><div class="form-group"><label><input type="checkbox" id="limparEmpresas"> Empresas</label></div><div class="form-group"><label><input type="checkbox" id="limparFuncionarios"> Funcionários</label></div><div class="form-group"><label><input type="checkbox" id="limparPlanos"> Planos de Contas</label></div><div class="form-group"><label><input type="checkbox" id="limparLancamentos"> Lançamentos</label></div><div class="form-group"><label><input type="checkbox" id="limparPagamentos"> Pagamentos</label></div><button type="submit" class="btn-primary">Limpar Selecionados</button><button type="button" class="btn-secondary cancel-modal">Cancelar</button></form></div></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
